@@ -1,0 +1,20 @@
+{
+  "name": "agent-world",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Isometric voxel office where AI agents work in teams connected to a central brain",
+  "type": "module",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n brain,office -c magenta,cyan \"npm:dev -w server\" \"npm:dev -w client\"",
+    "build": "npm run build -w client",
+    "start": "npm run start -w server",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

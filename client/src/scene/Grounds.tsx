@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { MeshBasicMaterial, MeshStandardMaterial } from 'three';
 import type { Team } from '../../../shared/types.ts';
 import { select } from '../lib/store.ts';
-import { BRAIN_HALF, CELL_X, CELL_Z, ROOM_D, ROOM_HD, ROOM_HW, ROOM_W, slotPosition } from './layout.ts';
+import { CELL_X, CELL_Z, ROOM_D, ROOM_W, slotPosition, walkway } from './layout.ts';
 import { plazaTexture, softShadowTexture } from './textures.ts';
 import { VoxelBuilder, plant, voxelMaterial } from './voxels.ts';
 
@@ -78,21 +78,16 @@ function buildGrounds(teams: Team[], halfX: number, halfZ: number, ring: number)
     }
   }
 
-  // Walkways from each room to the brain, with a stripe in the team colour.
+  // Walkways from each room to the brain, with a channel for the running light strip.
   for (const team of teams) {
-    const [x, z] = slotPosition(team.slot);
-    const len = Math.hypot(x, z) || 1;
-    const dx = -x / len;
-    const dz = -z / len;
-    const tRoom = Math.min(dx ? ROOM_HW / Math.abs(dx) : Infinity, dz ? ROOM_HD / Math.abs(dz) : Infinity);
-    const tBrain = Math.min(dx ? BRAIN_HALF / Math.abs(dx) : Infinity, dz ? BRAIN_HALF / Math.abs(dz) : Infinity);
-    const length = len - tRoom - tBrain;
-    if (length <= 0.5) continue;
-    const mid = tRoom + length / 2;
-    b.push(x + dx * mid, 0, z + dz * mid, Math.atan2(dx, dz));
-    b.box(0, 0, 0, 2.4, 0.02, length, '#d6cdbf');
-    b.box(0, 0, 0, 2.1, 0.03, length, '#f8f5ef');
-    b.box(0, 0, 0, 0.1, 0.035, length - 0.6, team.color);
+    const w = walkway(team.slot);
+    if (w.length <= 0.5) continue;
+    b.push(w.x, 0, w.z, w.angle);
+    b.box(0, 0, 0, 2.4, 0.02, w.length, '#d6cdbf');
+    b.box(0, 0, 0, 2.1, 0.03, w.length, '#f8f5ef');
+    b.box(0, 0, 0, 0.34, 0.034, w.length - 0.4, '#2c3038');
+    b.box(0.2, 0, 0, 0.06, 0.036, w.length - 0.4, team.color);
+    b.box(-0.2, 0, 0, 0.06, 0.036, w.length - 0.4, team.color);
     b.pop();
   }
 

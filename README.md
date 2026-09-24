@@ -5,7 +5,8 @@ An isometric, voxel-style 3D office where AI agents work in teams. Built with **
 - **Every team is an office room.** Creating a team builds a new room, which animates into place, spiralling out from the centre of the office.
 - **Every agent is a worker.** Hiring an agent drops a new voxel worker onto a fresh desk in their team's room.
 - **Workers are animated.** They type at their desks, think (thought bubbles), upload results to the brain, walk to the whiteboard for meetings, and take coffee breaks in the lounge.
-- **Every room is wired to the Central Brain.** The glass server room in the middle holds the project and the shared memory of all teams. Data links pulse between each room and the brain, and each finished task flies into the brain core as a packet.
+- **Every room is wired to the Central Brain.** Each room has a comms tower whose glowing cable plugs into the brain's input ring, and a light strip runs along the walkway floor. When a worker syncs, the data visibly travels desk → tower → cable → brain; cyan "knowledge" flows back the other way.
+- **The brain is alive.** A holographic voxel brain floats on a projector beam: neurons flicker, thoughts sweep across it, and the side facing an incoming upload lights up with a shockwave. The latest memories orbit it as cubes in the colour of the team that wrote them.
 
 ```
 ┌──────────────────────────── browser (client/) ────────────────────────────┐
@@ -124,11 +125,13 @@ client/src/
   lib/demo.ts      In-page brain used by the standalone demo build
   scene/
     Office.tsx     Canvas, isometric orthographic camera, lights, bloom
-    Brain.tsx      Central server room: racks, DB stacks, voxel brain core
+    Brain.tsx      Central server room: glass walls, racks, DB stacks
+    BrainCore.tsx  Brain hologram, projector beam, input ring, memory shards, shockwaves
     Room.tsx       Team room, lounge, whiteboard, workstations
     Character.tsx  Worker controller: sit/stand/walk state machine and poses
     VoxelPerson.tsx  Voxel body built from an appearance, with animation rig
-    Links.tsx      Room ↔ brain data links and upload packets
+    Links.tsx      Room towers, cables and floor light strips; upload packets
+    shaders.ts     Flowing-light and hologram-beam materials
     voxels.ts      Merged vertex-coloured box builder (one draw call per room)
     layout.ts      Floor plan: room slots, desks, meeting and lounge spots
   ui/              HUD, inspector and modals

@@ -71,7 +71,19 @@ function easeOutBounce(x: number) {
 
 const headPos = new Vector3();
 
-export function Character({ agentId, teamColor, roomX, roomZ }: { agentId: string; teamColor: string; roomX: number; roomZ: number }) {
+export function Character({
+  agentId,
+  teamColor,
+  slot,
+  roomX,
+  roomZ,
+}: {
+  agentId: string;
+  teamColor: string;
+  slot: number;
+  roomX: number;
+  roomZ: number;
+}) {
   const agent = useWorld((s) => s.agents[agentId]);
   const selected = useWorld((s) => s.selection?.kind === 'agent' && s.selection.id === agentId);
   const hovered = useWorld((s) => s.hovered === agentId);
@@ -122,7 +134,7 @@ export function Character({ agentId, teamColor, roomX, roomZ }: { agentId: strin
       if (st === 'syncing') {
         head.current.getWorldPosition(headPos);
         headPos.y += 0.6;
-        sendPacket(headPos, teamColor, t);
+        sendPacket(headPos, teamColor, t, slot);
       }
       s.lastStatus = st;
     }

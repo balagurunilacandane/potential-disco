@@ -1,26 +1,23 @@
-// The central server room: glass walls, blinking racks, database stacks and a floating voxel brain core.
-import { useLayoutEffect, useMemo, useRef, type RefObject } from 'react';
+// The central server room: glass walls, blinking racks and database stacks around the brain hologram.
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import {
-  BoxGeometry,
   Color,
   InstancedMesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
   Object3D,
-  type Group,
-  type PointLight,
 } from 'three';
 import { select, useWorld } from '../lib/store.ts';
 import { fx } from '../lib/fx.ts';
-import { BRAIN_CORE, BRAIN_HALF, WALL_H } from './layout.ts';
+import { BRAIN_HALF, WALL_H } from './layout.ts';
+import { CoreAssembly } from './BrainCore.tsx';
 import { brainSignTexture, floorTexture } from './textures.ts';
 import { VoxelBuilder, voxelMaterial } from './voxels.ts';
 
 const FRAME = '#1b1d22';
 const CYAN = new Color('#39d0ff');
-const VIOLET = new Color('#9b6bff');
 
 interface Rack {
   x: number;
@@ -79,85 +76,7 @@ function buildShell() {
   return b.build();
 }
 
-/** Points on a voxel sphere shell. */
-function sphereVoxels(radius: number, size: number) {
-  const pts: [number, number, number][] = [];
-  const n = Math.ceil(radius / size);
-  for (let x = -n; x <= n; x++) {
-    for (let y = -n; y <= n; y++) {
-      for (let z = -n; z <= n; z++) {
-        const d = Math.hypot(x, y, z) * size;
-        if (d <= radius && d > radius - size * 1.25) pts.push([x * size, y * size, z * size]);
-      }
-    }
-  }
-  return pts;
-}
-
 const dummy = new Object3D();
-const tmpColor = new Color();
-
-function Core() {
-  const group = useRef<Group>(null!);
-  const mesh = useRef<InstancedMesh>(null!);
-  const ringA = useRef<Group>(null!);
-  const ringB = useRef<Group>(null!);
-  const light = useRef<PointLight>(null!);
-  const voxels = useMemo(() => sphereVoxels(1.15, 0.2), []);
-  const phases = useMemo(() => voxels.map(() => Math.random() * Math.PI * 2), [voxels]);
-  const geometry = useMemo(() => new BoxGeometry(0.18, 0.18, 0.18), []);
-  const material = useMemo(() => new MeshBasicMaterial({ toneMapped: false }), []);
-
-  useLayoutEffect(() => {
-    voxels.forEach(([x, y, z], i) => {
-      dummy.position.set(x, y, z);
-      dummy.updateMatrix();
-      mesh.current.setMatrixAt(i, dummy.matrix);
-      mesh.current.setColorAt(i, CYAN);
-    });
-    mesh.current.instanceMatrix.needsUpdate = true;
-  }, [voxels]);
-
-  useFrame((state) => {
-    const t = state.clock.elapsedTime;
-    const pulse = Math.exp(-(t - fx.brainPulse) * 3.5);
-    group.current.rotation.y = t * 0.35;
-    group.current.position.y = BRAIN_CORE.y + Math.sin(t * 1.2) * 0.12;
-    group.current.scale.setScalar(1 + pulse * 0.18);
-    voxels.forEach(([, y], i) => {
-      const spark = Math.max(0, Math.sin(t * 2.2 + phases[i]));
-      tmpColor.copy(CYAN).lerp(VIOLET, (y + 1.15) / 2.3).multiplyScalar(1.1 + spark * spark * 1.8 + pulse * 2);
-      mesh.current.setColorAt(i, tmpColor);
-    });
-    mesh.current.instanceColor!.needsUpdate = true;
-    ringA.current.rotation.set(1.1, t * 0.9, 0.3);
-    ringB.current.rotation.set(-0.9, -t * 0.7, -0.4);
-    light.current.intensity = 14 + pulse * 30 + Math.sin(t * 2) * 2;
-  });
-
-  const ring = (ref: RefObject<Group>, radius: number, color: Color) => (
-    <group ref={ref}>
-      {Array.from({ length: 28 }, (_, i) => {
-        const a = (i / 28) * Math.PI * 2;
-        return (
-          <mesh key={i} position={[Math.cos(a) * radius, 0, Math.sin(a) * radius]} rotation-y={-a}>
-            <boxGeometry args={[0.1, 0.1, 0.22]} />
-            <meshBasicMaterial color={color} toneMapped={false} />
-          </mesh>
-        );
-      })}
-    </group>
-  );
-
-  return (
-    <group ref={group} position={BRAIN_CORE}>
-      <instancedMesh ref={mesh} args={[geometry, material, voxels.length]} />
-      {ring(ringA, 1.75, CYAN.clone().multiplyScalar(2.2))}
-      {ring(ringB, 2.05, VIOLET.clone().multiplyScalar(2.2))}
-      <pointLight ref={light} color="#5fd6ff" distance={16} decay={1.6} intensity={14} />
-    </group>
-  );
-}
 
 /** Blinking LEDs on every rack plus glowing bands on the database stacks. */
 function Lights() {
@@ -231,6 +150,12 @@ export function Brain() {
   const shell = useMemo(buildShell, []);
   const memoryCount = useWorld((s) => s.stats.memoryCount);
   const selected = useWorld((s) => s.selection?.kind === 'brain');
+  // An <Html> label mounted on the scene's very first frame never paints, so mount it a tick later.
+  const [labelReady, setLabelReady] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setLabelReady(true), 0);
+    return () => clearTimeout(id);
+  }, []);
   const glass = useMemo(
     () => new MeshStandardMaterial({ color: '#bfe6ff', transparent: true, opacity: 0.16, roughness: 0.05, metalness: 0.2, depthWrite: false }),
     [],
@@ -271,21 +196,23 @@ export function Brain() {
       <mesh position={[0, WALL_H + 0.75, -h]} material={sign}>
         <planeGeometry args={[5.2, 1.02]} />
       </mesh>
-      <Core />
+      <CoreAssembly />
       <Lights />
-      <Html position={[0, 6.4, 0]} center zIndexRange={[10, 0]}>
-        <button
-          className={`brain-label${selected ? ' selected' : ''}`}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            open();
-          }}
-        >
-          <span className="brain-dot" />
-          Central Brain · {memoryCount.toLocaleString()} memories
-        </button>
-      </Html>
+      {labelReady && (
+        <Html position={[0, 7.4, 0]} center zIndexRange={[10, 0]}>
+          <button
+            className={`brain-label${selected ? ' selected' : ''}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              open();
+            }}
+          >
+            <span className="brain-dot" />
+            Central Brain · {memoryCount.toLocaleString()} memories
+          </button>
+        </Html>
+      )}
     </group>
   );
 }

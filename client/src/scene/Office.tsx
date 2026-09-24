@@ -10,7 +10,7 @@ import { VIEW_ANGLES, moveCamera, select, useWorld } from '../lib/store.ts';
 import { Brain } from './Brain.tsx';
 import { CameraRig, MAX_ZOOM, MIN_ZOOM, POLAR_LIMITS } from './CameraRig.tsx';
 import { Grounds } from './Grounds.tsx';
-import { Links, Packets } from './Links.tsx';
+import { Links } from './Links.tsx';
 import { Room } from './Room.tsx';
 import { slotPosition, worldExtent } from './layout.ts';
 import { skyTexture } from './textures.ts';
@@ -88,7 +88,6 @@ function World() {
         <Room key={t.id} team={t} />
       ))}
       <Links teams={teams} />
-      <Packets />
       <CameraRig extent={extent} stops={stops} />
       <InitialFit />
     </>

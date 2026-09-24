@@ -317,7 +317,7 @@ export function Room({ team }: { team: Team }) {
           <Workstation key={id} agentId={id} seat={seats[i]} color={team.color} icon={team.icon} />
         ))}
         {agentIds.map((id) => (
-          <Character key={id} agentId={id} teamColor={team.color} roomX={x} roomZ={z} />
+          <Character key={id} agentId={id} teamColor={team.color} slot={team.slot} roomX={x} roomZ={z} />
         ))}
       </group>
       <Html position={[0, WALL_H + 1.6, -ROOM_HD]} center zIndexRange={[10, 0]}>

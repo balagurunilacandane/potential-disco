@@ -1,5 +1,5 @@
 // Office floor plan: where rooms, desks and gathering spots live.
-import { Vector3 } from 'three';
+import { CubicBezierCurve3, Vector3 } from 'three';
 
 export const CELL_X = 22;
 export const CELL_Z = 20;
@@ -42,14 +42,59 @@ export function worldExtent(slots: number[]): number {
   return (r + 0.5) * CELL_X;
 }
 
-/** Point on the room's wall-top closest to the brain, where its data link leaves the room. */
-export function roomUplink(slot: number): Vector3 {
+// ---------- connections between rooms and the brain ----------
+
+/** Radius of the brain's input ring, where every room's cable plugs in. */
+export const HALO_RADIUS = 2.9;
+export const TOWER_HEIGHT = 4.2;
+
+function linkBasis(slot: number) {
   const [x, z] = slotPosition(slot);
   const len = Math.hypot(x, z) || 1;
   const dx = -x / len;
   const dz = -z / len;
-  const t = Math.min(dx ? ROOM_HW / Math.abs(dx) : Infinity, dz ? ROOM_HD / Math.abs(dz) : Infinity) - 0.4;
-  return new Vector3(x + dx * t, WALL_H + 0.1, z + dz * t);
+  const tRoom = Math.min(dx ? ROOM_HW / Math.abs(dx) : Infinity, dz ? ROOM_HD / Math.abs(dz) : Infinity);
+  const tBrain = Math.min(dx ? BRAIN_HALF / Math.abs(dx) : Infinity, dz ? BRAIN_HALF / Math.abs(dz) : Infinity);
+  return { x, z, len, dx, dz, tRoom, tBrain };
+}
+
+/** The floor path from a room's edge to the brain room's glass wall. */
+export function walkway(slot: number) {
+  const { x, z, len, dx, dz, tRoom, tBrain } = linkBasis(slot);
+  const length = len - tRoom - tBrain;
+  const mid = tRoom + length / 2;
+  return { x: x + dx * mid, z: z + dz * mid, length, angle: Math.atan2(dx, dz) };
+}
+
+/** Foot of the comms tower that stands beside the walkway, just outside the room. */
+export function towerBase(slot: number): Vector3 {
+  const { x, z, dx, dz, tRoom } = linkBasis(slot);
+  const along = tRoom + 1.3;
+  // Step sideways off the walkway.
+  return new Vector3(x + dx * along - dz * 2.1, 0, z + dz * along + dx * 2.1);
+}
+
+/** Where a room's cable plugs into the brain's input ring. */
+export function haloPort(slot: number): Vector3 {
+  const { dx, dz } = linkBasis(slot);
+  return new Vector3(-dx * HALO_RADIUS, BRAIN_CORE.y, -dz * HALO_RADIUS);
+}
+
+const curves = new Map<number, CubicBezierCurve3>();
+
+/** Cable from the top of a room's tower to its port on the brain's input ring. */
+export function linkCurve(slot: number): CubicBezierCurve3 {
+  const hit = curves.get(slot);
+  if (hit) return hit;
+  const start = towerBase(slot).setY(TOWER_HEIGHT + 0.25);
+  const end = haloPort(slot);
+  const span = Math.hypot(start.x - end.x, start.z - end.z);
+  const outward = end.clone().setY(0).normalize();
+  const c1 = start.clone().setY(start.y + 2.5 + span * 0.12);
+  const c2 = end.clone().addScaledVector(outward, span * 0.35).setY(end.y + 1.5 + span * 0.08);
+  const curve = new CubicBezierCurve3(start, c1, c2, end);
+  curves.set(slot, curve);
+  return curve;
 }
 
 // ---------- desks inside a room (room-local coordinates) ----------

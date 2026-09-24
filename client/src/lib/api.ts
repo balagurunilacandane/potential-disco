@@ -9,6 +9,7 @@ import type {
   UpdateAgentInput,
   WorldState,
 } from '../../../shared/types.ts';
+import { DEMO, local } from './demo.ts';
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${url}`, {
@@ -23,7 +24,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   return res.status === 204 ? (undefined as T) : res.json();
 }
 
-export const api = {
+const remote = {
   state: () => request<WorldState>('GET', '/state'),
   updateProject: (patch: Partial<Pick<Project, 'name' | 'description' | 'goal'>>) =>
     request<Project>('PATCH', '/project', patch),
@@ -39,3 +40,18 @@ export const api = {
   },
   remember: (input: CreateMemoryInput) => request<MemoryEntry>('POST', '/memory', input),
 };
+
+/** Same calls answered by the in-page brain (demo build). */
+const inPage: typeof remote = {
+  state: () => local((b) => b.snapshot()),
+  updateProject: (patch) => local((b) => b.updateProject(patch)),
+  createTeam: (input) => local((b) => b.createTeam(input)),
+  deleteTeam: (id) => local((b) => b.deleteTeam(id)),
+  createAgent: (input) => local((b) => b.createAgent(input)),
+  updateAgent: (id, patch) => local((b) => b.updateAgent(id, patch)),
+  deleteAgent: (id) => local((b) => b.deleteAgent(id)),
+  memory: (query) => local((b) => b.queryMemory({ ...query, limit: query.limit ?? 100 })),
+  remember: (input) => local((b) => b.remember(input)),
+};
+
+export const api = DEMO ? inPage : remote;

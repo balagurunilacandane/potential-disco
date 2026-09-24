@@ -40,6 +40,14 @@ npm run build
 npm start          # http://localhost:8787
 ```
 
+### Standalone demo (no server)
+
+```bash
+npm run build:demo   # → client/dist-demo/agent-world.html
+```
+
+The demo build runs the brain and its simulation inside the page, so the single HTML file works on its own. Nothing is saved: reloading starts over.
+
 | Env var       | Default                  | Purpose                                   |
 | ------------- | ------------------------ | ----------------------------------------- |
 | `PORT`        | `8787`                   | Brain HTTP/WebSocket port                 |
@@ -93,13 +101,17 @@ Each room has 12 desks; create more teams to grow the office.
 ## Project layout
 
 ```
-shared/            Domain types and catalogs (roles, colours, names) used by both sides
-server/src/
-  brain.ts         Central brain: state, validation, JSON persistence, change events
+shared/
+  types.ts         Domain types shared by server and client
+  catalog.ts       Roles, colours, names and appearance options
+  brain.ts         Brain core: state, validation, change events (runs in Node or the browser)
   simulation.ts    Work loop for autopilot agents (work → think → sync → meet → break)
+server/src/
+  brain.ts         Brain core plus JSON-file persistence
   index.ts         Express REST API + WebSocket broadcast
 client/src/
   lib/store.ts     Live zustand mirror of the brain + UI state
+  lib/demo.ts      In-page brain used by the standalone demo build
   scene/
     Office.tsx     Canvas, isometric orthographic camera, lights, bloom
     Brain.tsx      Central server room: racks, DB stacks, voxel brain core

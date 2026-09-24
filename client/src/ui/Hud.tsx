@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { MAX_AGENTS_PER_TEAM } from '../../../shared/types.ts';
+import { DEMO } from '../lib/demo.ts';
 import { openModal, select, useWorld } from '../lib/store.ts';
 import { slotPosition } from '../scene/layout.ts';
 import { MEMORY_META, STATUS_META, timeAgo } from './status.ts';
@@ -47,7 +48,7 @@ export function TopBar() {
         <Stat label="Memories" value={stats.memoryCount} />
         <span className={`conn conn-${connection}`} title={`Brain ${connection}`}>
           <i />
-          {connection === 'online' ? 'Live' : connection === 'connecting' ? 'Connecting' : 'Offline'}
+          {connection === 'online' ? (DEMO ? 'Demo' : 'Live') : connection === 'connecting' ? 'Connecting' : 'Offline'}
         </span>
       </div>
       <div className="actions">

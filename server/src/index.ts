@@ -7,7 +7,7 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import { WebSocketServer, WebSocket } from 'ws';
 import type { ServerEvent } from '../../shared/types.ts';
 import { Brain, HttpError } from './brain.ts';
-import { startSimulation } from './simulation.ts';
+import { startSimulation } from '../../shared/simulation.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
@@ -109,7 +109,7 @@ wss.on('connection', (socket) => {
   socket.send(JSON.stringify(hello));
 });
 
-brain.on('event', (event) => {
+brain.on((event) => {
   const payload = JSON.stringify(event);
   for (const client of wss.clients) {
     if (client.readyState === WebSocket.OPEN) client.send(payload);

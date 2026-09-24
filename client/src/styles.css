@@ -161,6 +161,12 @@ p {
   width: 100%;
 }
 
+.btn.danger.armed {
+  background: var(--danger);
+  border-color: transparent;
+  color: #fff;
+}
+
 .icon-btn {
   width: 30px;
   height: 30px;
@@ -1295,9 +1301,9 @@ label textarea {
 
 @media (max-width: 760px) {
   .topbar {
-    top: 8px;
-    left: 8px;
-    right: 8px;
+    top: 16px;
+    left: 16px;
+    right: 16px;
     flex-wrap: wrap;
     gap: 8px;
   }
@@ -1312,9 +1318,9 @@ label textarea {
   }
 
   .side {
-    top: 68px;
-    left: 8px;
-    right: 8px;
+    top: 76px;
+    left: 16px;
+    right: 16px;
     bottom: auto;
     width: auto;
     max-height: 45vh;
@@ -1326,9 +1332,9 @@ label textarea {
 
   .inspector {
     top: auto;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
     width: auto;
     max-height: 55vh;
     z-index: 5;

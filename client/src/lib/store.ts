@@ -1,6 +1,7 @@
 // Client-side mirror of the brain, kept live over a WebSocket.
 import { create } from 'zustand';
 import type { Agent, MemoryEntry, Project, ServerEvent, Team, WorldStats } from '../../../shared/types.ts';
+import { DEMO, localBrain } from './demo.ts';
 
 export type Selection = { kind: 'agent'; id: string } | { kind: 'team'; id: string } | { kind: 'brain' } | null;
 export type Modal = { kind: 'team' } | { kind: 'agent'; teamId?: string } | null;
@@ -99,6 +100,14 @@ function apply(ev: ServerEvent) {
 }
 
 export function connect() {
+  if (DEMO) {
+    // Events are cloned so the store never shares objects the brain mutates in place.
+    const brain = localBrain();
+    apply({ type: 'snapshot', state: structuredClone(brain.snapshot()) });
+    brain.on((ev) => apply(structuredClone(ev)));
+    useWorld.setState({ connection: 'online' });
+    return;
+  }
   let retry = 500;
   const open = () => {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';

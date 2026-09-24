@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { DEMO } from '../lib/demo.ts';
 import { useShallow } from 'zustand/react/shallow';
 import { AGENT_STATUSES, MAX_AGENTS_PER_TEAM, type MemoryEntry } from '../../../shared/types.ts';
 import { api } from '../lib/api.ts';
@@ -60,7 +61,6 @@ function AgentView({ id }: { id: string }) {
     api.updateAgent(id, patch).catch((e: Error) => toast(e.message, 'error'));
 
   const fire = async () => {
-    if (!confirm(`Remove ${agent.name} from ${team.name}?`)) return;
     try {
       await api.deleteAgent(id);
       toast(`${agent.name} left the office`);
@@ -137,21 +137,26 @@ function AgentView({ id }: { id: string }) {
       <h3>Recent memories</h3>
       <MemoryList entries={memories} showAgent={false} />
 
-      <details className="api-hint">
-        <summary>Connect a real agent</summary>
-        <p>Turn autopilot off, then report progress from your agent runtime:</p>
-        <pre>{`curl -X PATCH ${location.origin}/api/agents/${agent.id} \\
+      {DEMO ? (
+        <p className="api-hint">
+          This demo runs entirely in your browser. In the full app, a real AI agent drives this worker by reporting its status
+          and results to the brain's API.
+        </p>
+      ) : (
+        <details className="api-hint">
+          <summary>Connect a real agent</summary>
+          <p>Turn autopilot off, then report progress from your agent runtime:</p>
+          <pre>{`curl -X PATCH ${location.origin}/api/agents/${agent.id} \\
   -H 'content-type: application/json' \\
   -d '{"status":"working","currentTask":"…"}'
 
 curl -X POST ${location.origin}/api/memory \\
   -H 'content-type: application/json' \\
   -d '{"agentId":"${agent.id}","kind":"insight","content":"…"}'`}</pre>
-      </details>
+        </details>
+      )}
 
-      <button className="btn danger block" onClick={fire}>
-        Remove agent
-      </button>
+      <ConfirmButton label="Remove agent" confirmLabel={`Click again to remove ${agent.name}`} onConfirm={fire} />
     </>
   );
 }
@@ -164,7 +169,6 @@ function TeamView({ id }: { id: string }) {
   const [x, z] = slotPosition(team.slot);
 
   const remove = async () => {
-    if (!confirm(`Close the ${team.name} room and remove its ${members.length} agents?`)) return;
     try {
       await api.deleteTeam(id);
       toast(`${team.name} room closed`);
@@ -230,9 +234,11 @@ function TeamView({ id }: { id: string }) {
       <h3>Team memory</h3>
       <MemoryList entries={memories} />
 
-      <button className="btn danger block" onClick={remove}>
-        Close room
-      </button>
+      <ConfirmButton
+        label="Close room"
+        confirmLabel={`Click again to close ${team.name} and remove ${members.length} agents`}
+        onConfirm={remove}
+      />
     </>
   );
 }
@@ -395,5 +401,20 @@ function BrainView() {
       </div>
       <MemoryList entries={results ?? live} />
     </>
+  );
+}
+
+/** Two-step destructive button: the first click arms it, the second confirms. */
+function ConfirmButton({ label, confirmLabel, onConfirm }: { label: string; confirmLabel: string; onConfirm: () => void }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const timer = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(timer);
+  }, [armed]);
+  return (
+    <button className={`btn danger block${armed ? ' armed' : ''}`} onClick={() => (armed ? onConfirm() : setArmed(true))}>
+      {armed ? confirmLabel : label}
+    </button>
   );
 }

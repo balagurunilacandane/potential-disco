@@ -1,8 +1,8 @@
 // Drives autopilot agents through a work loop: work → think → sync results to the brain → meet → break.
 // Agents with autopilot=false are left alone so real AI agents can report their own state via the API.
-import type { AgentStatus } from '../../shared/types.ts';
-import { MEETING_DECISIONS, fillTemplate, pick, roleTemplate } from '../../shared/catalog.ts';
-import type { Brain } from './brain.ts';
+import type { AgentStatus } from './types.ts';
+import { MEETING_DECISIONS, fillTemplate, pick, roleTemplate } from './catalog.ts';
+import type { BrainCore } from './brain.ts';
 
 /** Seconds each status lasts. Meeting/break include the walk to and from the desk. */
 const DURATION: Record<AgentStatus, [number, number]> = {
@@ -34,11 +34,11 @@ function duration(status: AgentStatus) {
   return (min + Math.random() * (max - min)) * 1000;
 }
 
-export function startSimulation(brain: Brain) {
+export function startSimulation(brain: BrainCore) {
   const nextChange = new Map<string, number>();
 
   // Newly hired agents get a moment to settle in before their first status change.
-  brain.on('event', (ev) => {
+  const unsubscribe = brain.on((ev) => {
     if (ev.type === 'agent:created') nextChange.set(ev.agent.id, Date.now() + 6000 + Math.random() * 4000);
     if (ev.type === 'agent:deleted') nextChange.delete(ev.id);
   });
@@ -88,5 +88,8 @@ export function startSimulation(brain: Brain) {
   };
 
   const timer = setInterval(tick, 1000);
-  return () => clearInterval(timer);
+  return () => {
+    clearInterval(timer);
+    unsubscribe();
+  };
 }

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { MAX_AGENTS_PER_TEAM } from '../../../shared/types.ts';
 import { DEMO } from '../lib/demo.ts';
-import { VIEW_ANGLES, moveCamera, openModal, select, setTouring, setViewAngle, useWorld, type ViewAngle } from '../lib/store.ts';
+import { VIEW_ANGLES, moveCamera, openModal, select, setRenderMode, setTouring, setViewAngle, useWorld, type ViewAngle } from '../lib/store.ts';
+import { describe, useDiagnostics } from '../lib/diagnostics.ts';
 import { slotPosition } from '../scene/layout.ts';
 import { MEMORY_META, STATUS_META, timeAgo } from './status.ts';
 
@@ -360,6 +361,7 @@ export function Welcome({ onClose }: { onClose: () => void }) {
         <p className="muted small">
           Move around by dragging and scrolling, or use the buttons at the bottom of the screen.
         </p>
+        <Troubleshooting />
         <div className="row end">
           <button className="btn" onClick={onClose}>
             Explore on my own
@@ -395,6 +397,76 @@ export function SceneMessage({ title, text }: { title: string; text: string }) {
         <button className="btn primary" onClick={() => location.reload()}>
           Reload
         </button>
+      </div>
+    </div>
+  );
+}
+
+/** Copyable technical details, so a blank screen on an untested device can be reported. */
+function DiagnosticDetails() {
+  const diag = useDiagnostics();
+  const mode = useWorld((s) => s.renderMode);
+  const text = describe(diag, mode);
+  const copy = (e: { currentTarget: HTMLButtonElement }) => {
+    const button = e.currentTarget;
+    navigator.clipboard?.writeText(text).then(
+      () => (button.textContent = 'Copied'),
+      () => (button.textContent = 'Select the text above to copy'),
+    );
+  };
+  return (
+    <div className="diag">
+      <pre>{text}</pre>
+      <button type="button" className="btn" onClick={copy}>
+        Copy details
+      </button>
+    </div>
+  );
+}
+
+function Troubleshooting() {
+  const mode = useWorld((s) => s.renderMode);
+  return (
+    <details className="api-hint">
+      <summary>Office looks blank or black?</summary>
+      <p>Simple graphics turn off shadows and effects so the office can draw on more devices.</p>
+      <div className="row">
+        {mode === 'safe' ? (
+          <button type="button" className="btn" onClick={() => setRenderMode('light')}>
+            Use standard graphics
+          </button>
+        ) : (
+          <button type="button" className="btn primary" onClick={() => setRenderMode('safe')}>
+            Use simple graphics
+          </button>
+        )}
+      </div>
+      <DiagnosticDetails />
+    </details>
+  );
+}
+
+/** Shown when even simple graphics read back black. */
+export function DiagnosticsPanel() {
+  const show = useDiagnostics((s) => s.showPanel);
+  if (!show) return null;
+  return (
+    <div className="modal-backdrop">
+      <div className="modal panel" role="alertdialog" aria-label="3D view problem">
+        <h2>The 3D office isn't drawing on this device</h2>
+        <p className="muted">
+          Your teams, agents and the brain are all still running, and the panels work. Please send these details so the
+          problem can be fixed for your device.
+        </p>
+        <DiagnosticDetails />
+        <div className="row end">
+          <button className="btn" onClick={() => useDiagnostics.setState({ showPanel: false })}>
+            Close
+          </button>
+          <button className="btn primary" onClick={() => location.reload()}>
+            Reload
+          </button>
+        </div>
       </div>
     </div>
   );

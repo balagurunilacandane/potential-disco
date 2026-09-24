@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import type { Agent, MemoryEntry, Project, ServerEvent, Team, WorldStats } from '../../../shared/types.ts';
 import { DEMO, localBrain } from './demo.ts';
+import { INITIAL_RENDER_MODE, applyModeClass, rememberMode, type RenderMode } from './device.ts';
 
 export type Selection = { kind: 'agent'; id: string } | { kind: 'team'; id: string } | { kind: 'brain' } | null;
 export type Modal = { kind: 'team' } | { kind: 'agent'; teamId?: string } | null;
@@ -57,6 +58,7 @@ interface WorldStore {
   tourLabel: string | null;
   /** The browser dropped the WebGL context (usually low graphics memory). */
   graphicsLost: boolean;
+  renderMode: RenderMode;
   toasts: Toast[];
 }
 
@@ -77,6 +79,7 @@ export const useWorld = create<WorldStore>(() => ({
   touring: false,
   tourLabel: null,
   graphicsLost: false,
+  renderMode: INITIAL_RENDER_MODE,
   toasts: [],
 }));
 
@@ -191,4 +194,10 @@ export function setTouring(touring: boolean) {
 
 export function openModal(modal: Modal) {
   useWorld.setState({ modal });
+}
+
+export function setRenderMode(renderMode: RenderMode) {
+  rememberMode(renderMode);
+  applyModeClass(renderMode);
+  useWorld.setState({ renderMode, graphicsLost: false });
 }

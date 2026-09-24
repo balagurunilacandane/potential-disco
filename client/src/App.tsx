@@ -1,24 +1,27 @@
 import { Office } from './scene/Office.tsx';
-import { ActivityFeed, Splash, TeamsPanel, Toasts, TopBar } from './ui/Hud.tsx';
+import { ActivityFeed, CameraBar, Splash, TeamsPanel, Toasts, TopBar, TourCaption, Welcome, useWelcome } from './ui/Hud.tsx';
 import { Inspector } from './ui/Inspector.tsx';
 import { Modals } from './ui/Modals.tsx';
 
 export function App() {
+  const welcome = useWelcome();
   return (
     <div className="app">
       <div className="scene">
         <Office />
       </div>
-      <TopBar />
+      <TopBar onHelp={welcome.show} />
       <div className="side">
         <TeamsPanel />
         <ActivityFeed />
       </div>
       <Inspector />
-      <p className="hint">Drag to pan · Right-drag to rotate · Scroll to zoom · Click a worker</p>
+      <TourCaption />
+      <CameraBar />
       <Modals />
       <Toasts />
       <Splash />
+      {welcome.open && <Welcome onClose={welcome.close} />}
     </div>
   );
 }

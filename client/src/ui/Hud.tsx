@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { MAX_AGENTS_PER_TEAM } from '../../../shared/types.ts';
 import { DEMO } from '../lib/demo.ts';
-import { openModal, select, useWorld } from '../lib/store.ts';
+import { VIEW_ANGLES, moveCamera, openModal, select, setTouring, setViewAngle, useWorld, type ViewAngle } from '../lib/store.ts';
 import { slotPosition } from '../scene/layout.ts';
 import { MEMORY_META, STATUS_META, timeAgo } from './status.ts';
 
@@ -16,7 +16,7 @@ export function useNow(interval = 5000) {
   return now;
 }
 
-export function TopBar() {
+export function TopBar({ onHelp }: { onHelp: () => void }) {
   const project = useWorld((s) => s.project);
   const connection = useWorld((s) => s.connection);
   const teamCount = useWorld((s) => Object.keys(s.teams).length);
@@ -52,6 +52,9 @@ export function TopBar() {
         </span>
       </div>
       <div className="actions">
+        <button className="btn icon-only" onClick={onHelp} title="How this works" aria-label="How this works">
+          ?
+        </button>
         <button className="btn" onClick={() => openModal({ kind: 'team' })}>
           + New team
         </button>
@@ -223,6 +226,152 @@ export function Splash() {
             The brain server isn't reachable yet. Start everything with <code>npm run dev</code> from the project root.
           </p>
         )}
+      </div>
+    </div>
+  );
+}
+
+const ROTATE = Math.PI / 2;
+
+/** On-screen camera controls, so nobody needs to know mouse gestures. */
+export function CameraBar() {
+  const viewAngle = useWorld((s) => s.viewAngle);
+  const touring = useWorld((s) => s.touring);
+  const inspectorOpen = useWorld((s) => s.selection !== null);
+  return (
+    <div className={`camera-dock${inspectorOpen ? ' with-inspector' : ''}`}>
+    <nav className="camera-bar panel" aria-label="Camera">
+      <button className="cam-btn wide" onClick={() => moveCamera({ fit: true })} title="Show the whole office (F)">
+        <span aria-hidden>⤢</span> Fit all
+      </button>
+      <span className="cam-sep" />
+      <button className="cam-btn" onClick={() => moveCamera({ rotate: -ROTATE })} title="Rotate left (Q)" aria-label="Rotate left">
+        ↺
+      </button>
+      <button className="cam-btn" onClick={() => moveCamera({ rotate: ROTATE })} title="Rotate right (E)" aria-label="Rotate right">
+        ↻
+      </button>
+      <span className="cam-sep" />
+      <button className="cam-btn" onClick={() => moveCamera({ zoomScale: 1 / 1.35 })} title="Zoom out (−)" aria-label="Zoom out">
+        −
+      </button>
+      <button className="cam-btn" onClick={() => moveCamera({ zoomScale: 1.35 })} title="Zoom in (+)" aria-label="Zoom in">
+        +
+      </button>
+      <span className="cam-sep" />
+      <div className="segmented" role="radiogroup" aria-label="View angle">
+        {(Object.keys(VIEW_ANGLES) as ViewAngle[]).map((key, i) => (
+          <button
+            key={key}
+            role="radio"
+            aria-checked={viewAngle === key}
+            className={viewAngle === key ? 'active' : ''}
+            onClick={() => setViewAngle(key)}
+            title={`${VIEW_ANGLES[key].hint} (${i + 1})`}
+          >
+            {VIEW_ANGLES[key].label}
+          </button>
+        ))}
+      </div>
+      <span className="cam-sep" />
+      <button
+        className={`cam-btn wide tour${touring ? ' active' : ''}`}
+        onClick={() => setTouring(!touring)}
+        title="Let the camera show you around (T)"
+        aria-pressed={touring}
+      >
+        <span aria-hidden>{touring ? '■' : '▶'}</span> {touring ? 'Stop tour' : 'Tour'}
+      </button>
+    </nav>
+    </div>
+  );
+}
+
+export function TourCaption() {
+  const label = useWorld((s) => (s.touring ? s.tourLabel : null));
+  const agents = useWorld((s) => s.agents);
+  const teams = useWorld((s) => s.teams);
+  if (!label) return null;
+  const team = Object.values(teams).find((t) => t.name === label);
+  const members = team ? Object.values(agents).filter((a) => a.teamId === team.id) : [];
+  const busy = members.filter((a) => a.status === 'working' || a.status === 'syncing' || a.status === 'thinking').length;
+  return (
+    <div className="tour-caption" key={label} style={{ ['--team' as string]: team?.color ?? '#39d0ff' }}>
+      <span className="eyebrow">Now showing</span>
+      <strong>{label}</strong>
+      <small>
+        {team
+          ? `${members.length} agents · ${busy} busy right now`
+          : 'Where every team stores what it learns'}
+      </small>
+    </div>
+  );
+}
+
+const WELCOME_KEY = 'agent-world:welcomed';
+
+function readWelcomed() {
+  try {
+    return localStorage.getItem(WELCOME_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function useWelcome() {
+  const [open, setOpen] = useState(() => !readWelcomed());
+  const close = () => {
+    setOpen(false);
+    try {
+      localStorage.setItem(WELCOME_KEY, '1');
+    } catch {
+      // Private windows may block storage; the card simply shows again next time.
+    }
+  };
+  return { open, show: () => setOpen(true), close };
+}
+
+export function Welcome({ onClose }: { onClose: () => void }) {
+  const steps = [
+    { icon: '▦', title: 'Each team has its own room', text: 'Use “New team” to add a room to the office.' },
+    { icon: '☺', title: 'Each AI agent is a worker', text: 'Use “Hire agent” to give someone a desk. Click any worker to see what they are doing.' },
+    { icon: '◉', title: 'The Central Brain remembers everything', text: 'Click the glowing core in the middle to read what every team has learned.' },
+  ];
+  return (
+    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal panel welcome" role="dialog" aria-label="Welcome">
+        <p className="eyebrow">Welcome</p>
+        <h2>Your AI office, at a glance</h2>
+        <ol className="steps">
+          {steps.map((s) => (
+            <li key={s.title}>
+              <span className="step-icon" aria-hidden>
+                {s.icon}
+              </span>
+              <span>
+                <strong>{s.title}</strong>
+                <small>{s.text}</small>
+              </span>
+            </li>
+          ))}
+        </ol>
+        <p className="muted small">
+          Move around by dragging and scrolling, or use the buttons at the bottom of the screen.
+        </p>
+        <div className="row end">
+          <button className="btn" onClick={onClose}>
+            Explore on my own
+          </button>
+          <button
+            className="btn primary"
+            onClick={() => {
+              onClose();
+              setTouring(true);
+            }}
+          >
+            ▶ Show me around
+          </button>
+        </div>
       </div>
     </div>
   );

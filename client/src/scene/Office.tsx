@@ -1,75 +1,32 @@
-// The whole isometric office: camera, lights, ground, brain, team rooms and data links.
+// The whole isometric office: camera, lights, building, brain, team rooms and data links.
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Bloom, EffectComposer, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
-import { MOUSE, TOUCH, type DirectionalLight, type OrthographicCamera } from 'three';
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import { MOUSE, TOUCH, type DirectionalLight } from 'three';
 import { useShallow } from 'zustand/react/shallow';
-import { select, useWorld } from '../lib/store.ts';
+import { VIEW_ANGLES, moveCamera, select, useWorld } from '../lib/store.ts';
 import { Brain } from './Brain.tsx';
+import { CameraRig, MAX_ZOOM, MIN_ZOOM, POLAR_LIMITS } from './CameraRig.tsx';
+import { Grounds } from './Grounds.tsx';
 import { Links, Packets } from './Links.tsx';
 import { Room } from './Room.tsx';
-import { worldExtent } from './layout.ts';
+import { slotPosition, worldExtent } from './layout.ts';
+import { skyTexture } from './textures.ts';
 
 /** Isometric view direction (equal x/z, slightly steeper than true isometric). */
 const VIEW = [1, 1.08, 1] as const;
 
-function CameraRig() {
-  const focus = useWorld((s) => s.focus);
-  const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
-  const camera = useThree((s) => s.camera) as OrthographicCamera;
-  const goal = useRef<{ x: number; z: number; zoom?: number } | null>(null);
-
-  useEffect(() => {
-    if (focus) goal.current = { x: focus.x, z: focus.z, zoom: focus.zoom };
-  }, [focus]);
-
-  useEffect(() => {
-    if (!controls) return;
-    const cancel = () => (goal.current = null);
-    controls.addEventListener('start', cancel);
-    return () => controls.removeEventListener('start', cancel);
-  }, [controls]);
-
-  useFrame((_, dt) => {
-    const g = goal.current;
-    if (!g || !controls) return;
-    const k = 1 - Math.exp(-dt * 5);
-    const dx = (g.x - controls.target.x) * k;
-    const dz = (g.z - controls.target.z) * k;
-    const dy = -controls.target.y * k;
-    controls.target.x += dx;
-    controls.target.y += dy;
-    controls.target.z += dz;
-    camera.position.x += dx;
-    camera.position.y += dy;
-    camera.position.z += dz;
-    let zoomDone = true;
-    if (g.zoom) {
-      camera.zoom += (g.zoom - camera.zoom) * k;
-      camera.updateProjectionMatrix();
-      zoomDone = Math.abs(g.zoom - camera.zoom) < 0.05;
-    }
-    controls.update();
-    if (Math.abs(dx) + Math.abs(dz) < 0.002 && zoomDone) goal.current = null;
-  });
-  return null;
-}
-
-/** Fits the camera to the office once the first snapshot arrives. */
-function InitialFit({ extent }: { extent: number }) {
+/** Frames the whole office once the first snapshot arrives. */
+function InitialFit() {
   const loaded = useWorld((s) => s.loaded);
-  const size = useThree((s) => s.size);
   const done = useRef(false);
   useEffect(() => {
     if (!loaded || done.current) return;
     done.current = true;
-    // An isometric view of a square of half-size e spans ~2.9e horizontally.
-    const zoom = Math.min(size.width / (extent * 2.9), size.height / (extent * 1.9));
-    select(null, { x: 0, z: 0, zoom: Math.max(6, Math.min(40, zoom * 1.1)) });
-  }, [loaded, extent, size]);
+    moveCamera({ fit: true, polar: VIEW_ANGLES.classic.polar });
+  }, [loaded]);
   return null;
 }
 
@@ -108,24 +65,32 @@ function Sun({ extent }: { extent: number }) {
 function World() {
   const teams = useWorld(useShallow((s) => Object.values(s.teams).sort((a, b) => a.slot - b.slot)));
   const extent = useMemo(() => Math.max(worldExtent(teams.map((t) => t.slot)), 22), [teams]);
+  const stops = useMemo(
+    () => [
+      { x: 0, z: 0, label: 'Central Brain' },
+      ...teams.map((t) => {
+        const [x, z] = slotPosition(t.slot);
+        return { x, z, label: t.name };
+      }),
+    ],
+    [teams],
+  );
+  const sky = useMemo(() => skyTexture(), []);
 
   return (
     <>
-      <color attach="background" args={['#e6eaf0']} />
-      <hemisphereLight args={['#ffffff', '#aeb8c6', 1.35]} />
+      <primitive attach="background" object={sky} />
+      <hemisphereLight args={['#ffffff', '#b3bdcc', 1.35]} />
       <Sun extent={extent} />
-      <mesh rotation-x={-Math.PI / 2} position-y={-0.01} receiveShadow onClick={(e) => e.delta < 5 && select(null)}>
-        <planeGeometry args={[1200, 1200]} />
-        <meshStandardMaterial color="#dfe4ea" roughness={1} />
-      </mesh>
+      <Grounds teams={teams} extent={extent} />
       <Brain />
       {teams.map((t) => (
         <Room key={t.id} team={t} />
       ))}
       <Links teams={teams} />
       <Packets />
-      <CameraRig />
-      <InitialFit extent={extent} />
+      <CameraRig extent={extent} stops={stops} />
+      <InitialFit />
     </>
   );
 }
@@ -136,7 +101,7 @@ export function Office() {
       shadows
       orthographic
       dpr={[1, 2]}
-      camera={{ position: [VIEW[0] * 90, VIEW[1] * 90, VIEW[2] * 90], zoom: 14, near: 0.1, far: 1000 }}
+      camera={{ position: [VIEW[0] * 90, VIEW[1] * 90, VIEW[2] * 90], zoom: 10, near: 0.1, far: 1000 }}
       gl={{ antialias: false, powerPreference: 'high-performance' }}
       onPointerMissed={(e) => e.type === 'click' && select(null)}
     >
@@ -145,10 +110,10 @@ export function Office() {
         makeDefault
         enableDamping
         dampingFactor={0.1}
-        minZoom={5}
-        maxZoom={110}
-        minPolarAngle={0.35}
-        maxPolarAngle={1.15}
+        minZoom={MIN_ZOOM}
+        maxZoom={MAX_ZOOM}
+        minPolarAngle={POLAR_LIMITS.min}
+        maxPolarAngle={POLAR_LIMITS.max}
         zoomToCursor
         screenSpacePanning={false}
         mouseButtons={{ LEFT: MOUSE.PAN, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.ROTATE }}

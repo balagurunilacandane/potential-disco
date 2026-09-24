@@ -154,3 +154,43 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, x: number, y: numb
   }
   ctx.fillText(text, x, y);
 }
+
+/** Soft vertical sky gradient used as the scene background. */
+export function skyTexture() {
+  return canvasTexture('sky', 4, 512, (ctx) => {
+    const g = ctx.createLinearGradient(0, 0, 0, 512);
+    g.addColorStop(0, '#c9d8ea');
+    g.addColorStop(0.55, '#e4ebf3');
+    g.addColorStop(1, '#f4efe7');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 4, 512);
+  });
+}
+
+/** Large pale stone tiles for the building floor between rooms. */
+export function plazaTexture() {
+  const tex = canvasTexture('plaza', 256, 256, (ctx) => {
+    ctx.fillStyle = '#ece8e1';
+    ctx.fillRect(0, 0, 256, 256);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.fillRect(6, 6, 244, 3);
+    ctx.fillRect(6, 6, 3, 244);
+    ctx.strokeStyle = 'rgba(120, 110, 95, 0.14)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(1.5, 1.5, 253, 253);
+  });
+  tex.wrapS = tex.wrapT = RepeatWrapping;
+  return tex;
+}
+
+/** Radial falloff used as a soft shadow under the floating office. */
+export function softShadowTexture() {
+  return canvasTexture('soft-shadow', 256, 256, (ctx) => {
+    const g = ctx.createRadialGradient(128, 128, 30, 128, 128, 128);
+    g.addColorStop(0, 'rgba(40, 52, 72, 0.32)');
+    g.addColorStop(0.6, 'rgba(40, 52, 72, 0.14)');
+    g.addColorStop(1, 'rgba(40, 52, 72, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 256, 256);
+  });
+}

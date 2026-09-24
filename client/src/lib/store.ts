@@ -6,6 +6,29 @@ import { DEMO, localBrain } from './demo.ts';
 export type Selection = { kind: 'agent'; id: string } | { kind: 'team'; id: string } | { kind: 'brain' } | null;
 export type Modal = { kind: 'team' } | { kind: 'agent'; teamId?: string } | null;
 
+/** A camera move. Omitted fields keep their current value. */
+export interface CameraGoal {
+  x?: number;
+  z?: number;
+  zoom?: number;
+  /** Multiply the current zoom (zoom buttons). */
+  zoomScale?: number;
+  /** Rotate around the target by this many radians, snapped to the isometric diagonals. */
+  rotate?: number;
+  /** Angle from straight down (0) towards the horizon. */
+  polar?: number;
+  /** Frame the whole office. */
+  fit?: boolean;
+}
+
+export type ViewAngle = 'classic' | 'top' | 'low';
+
+export const VIEW_ANGLES: Record<ViewAngle, { label: string; polar: number; hint: string }> = {
+  classic: { label: 'Classic', polar: 0.92, hint: 'Isometric view' },
+  top: { label: 'Top', polar: 0.3, hint: 'Look straight down' },
+  low: { label: 'Low', polar: 1.18, hint: 'Eye-level view' },
+};
+
 export interface Toast {
   id: number;
   text: string;
@@ -26,7 +49,12 @@ interface WorldStore {
   hovered: string | null;
   modal: Modal;
   /** Camera focus request; `key` changes on every request so repeated clicks re-focus. */
-  focus: { x: number; z: number; zoom?: number; key: number } | null;
+  focus: (CameraGoal & { key: number }) | null;
+  viewAngle: ViewAngle;
+  /** Guided tour: the camera drifts from room to room until the user takes over. */
+  touring: boolean;
+  /** What the tour is currently showing. */
+  tourLabel: string | null;
   toasts: Toast[];
 }
 
@@ -43,6 +71,9 @@ export const useWorld = create<WorldStore>(() => ({
   hovered: null,
   modal: null,
   focus: null,
+  viewAngle: 'classic',
+  touring: false,
+  tourLabel: null,
   toasts: [],
 }));
 
@@ -135,11 +166,24 @@ export function toast(text: string, tone: Toast['tone'] = 'info') {
   setTimeout(() => useWorld.setState((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), 4000);
 }
 
-export function select(selection: Selection, focus?: { x: number; z: number; zoom?: number }) {
+export function select(selection: Selection, focus?: CameraGoal) {
   useWorld.setState((s) => ({
     selection,
     focus: focus ? { ...focus, key: (s.focus?.key ?? 0) + 1 } : s.focus,
   }));
+}
+
+export function moveCamera(goal: CameraGoal) {
+  useWorld.setState((s) => ({ focus: { ...goal, key: (s.focus?.key ?? 0) + 1 } }));
+}
+
+export function setViewAngle(viewAngle: ViewAngle) {
+  useWorld.setState({ viewAngle });
+  moveCamera({ polar: VIEW_ANGLES[viewAngle].polar });
+}
+
+export function setTouring(touring: boolean) {
+  useWorld.setState(touring ? { touring, viewAngle: 'classic' } : { touring });
 }
 
 export function openModal(modal: Modal) {

@@ -57,7 +57,17 @@ The demo build runs the brain and its simulation inside the page, so the single 
 
 ## Controls
 
-Drag to pan · right-drag to rotate · scroll to zoom · click a worker, a room label or the brain to inspect it.
+A first-time visitor sees a short welcome card (reopen it with **?**). Everything can be done with the camera bar at the bottom of the screen:
+
+| Button            | Shortcut   | What it does                                                   |
+| ----------------- | ---------- | -------------------------------------------------------------- |
+| Fit all           | `F`        | Show the whole office                                          |
+| ↺ / ↻             | `Q` / `E`  | Rotate 90°; walls that would block the view drop out of the way |
+| − / +             | `-` / `+`  | Zoom out / in                                                  |
+| Classic, Top, Low | `1` `2` `3` | Isometric, straight-down and eye-level viewing angles          |
+| Tour              | `T`        | The camera visits the brain and each room in turn              |
+
+With a mouse: drag to pan, right-drag to rotate, scroll to zoom. Click a worker, a room or the brain to inspect it; `Esc` closes the panel.
 
 ## Connecting real AI agents
 

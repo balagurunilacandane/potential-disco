@@ -1197,21 +1197,228 @@ label textarea {
   font-size: 11px;
 }
 
-/* ---------- misc ---------- */
+/* ---------- camera ---------- */
 
-.hint {
+.camera-dock {
   position: absolute;
-  bottom: 14px;
+  left: 322px;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  transition: right 0.25s ease;
+}
+
+.camera-dock.with-inspector {
+  right: 392px;
+}
+
+.camera-bar {
+  pointer-events: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  max-width: 100%;
+}
+
+.cam-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  font-size: 17px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.cam-btn.wide {
+  font-size: 13px;
+  padding: 0 12px;
+}
+
+.cam-btn:hover {
+  background: var(--field);
+}
+
+.cam-btn.tour {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.cam-btn.tour:hover {
+  filter: brightness(1.08);
+}
+
+.cam-btn.tour.active {
+  background: var(--text);
+  color: var(--panel-solid);
+}
+
+.cam-sep {
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+  margin: 0 2px;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--field);
+}
+
+.segmented button {
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.segmented button.active {
+  background: var(--panel-solid);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.cam-btn:focus-visible,
+.segmented button:focus-visible,
+.btn:focus-visible,
+.icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn.icon-only {
+  width: 42px;
+  padding: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.tour-caption {
+  position: absolute;
+  top: 96px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.7);
-  color: #56606e;
-  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 22px 12px;
+  border-radius: 14px;
+  background: rgba(15, 18, 24, 0.86);
+  color: #fff;
+  border-bottom: 3px solid var(--team);
+  box-shadow: var(--shadow);
   pointer-events: none;
-  white-space: nowrap;
+  animation: pop-in 0.35s ease-out;
+  text-align: center;
 }
+
+.tour-caption .eyebrow {
+  color: #aab3c0;
+}
+
+.tour-caption strong {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.tour-caption small {
+  color: #cbd3de;
+  font-size: 12px;
+}
+
+/* ---------- welcome ---------- */
+
+.welcome {
+  width: min(500px, 100%);
+}
+
+.welcome h2 {
+  font-size: 22px;
+  text-wrap: balance;
+  margin-top: -8px;
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.steps li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--field);
+}
+
+.steps li > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.steps small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.step-icon {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.steps li:nth-child(2) .step-icon {
+  background: #3e63dd;
+}
+
+.steps li:nth-child(3) .step-icon {
+  background: linear-gradient(135deg, #39d0ff, #7b5cff);
+}
+
+.small {
+  font-size: 12.5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- misc ---------- */
 
 .toasts {
   position: fixed;
@@ -1340,8 +1547,20 @@ label textarea {
     z-index: 5;
   }
 
-  .hint {
+  .camera-dock,
+  .camera-dock.with-inspector {
+    left: 16px;
+    right: 16px;
+  }
+
+  .camera-bar .segmented,
+  .camera-bar .cam-sep:nth-of-type(3) {
     display: none;
+  }
+
+  .tour-caption {
+    top: auto;
+    bottom: 84px;
   }
 
   .hire-grid,

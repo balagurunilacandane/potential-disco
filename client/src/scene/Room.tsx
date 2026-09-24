@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { useShallow } from 'zustand/react/shallow';
-import { Color, MeshBasicMaterial, MeshStandardMaterial, type Group } from 'three';
+import { Color, MeshBasicMaterial, MeshStandardMaterial, Vector3, type Group } from 'three';
 import { MAX_AGENTS_PER_TEAM, type Team } from '../../../shared/types.ts';
 import { select, useWorld } from '../lib/store.ts';
 import { Character } from './Character.tsx';
@@ -30,14 +30,6 @@ function buildRoom(color: string) {
   const hw = ROOM_HW;
   const hd = ROOM_HD;
 
-  // Tall walls on the back (-z) and left (-x) sides so the camera can look in.
-  b.box(0, 0, -hd, ROOM_W + 0.3, WALL_H, 0.3, WALL);
-  b.box(-hw, 0, 0, 0.3, WALL_H, ROOM_D + 0.3, WALL);
-  b.box(0, WALL_H, -hd, ROOM_W + 0.34, 0.07, 0.34, TRIM);
-  b.box(-hw, WALL_H, 0, 0.34, 0.07, ROOM_D + 0.34, TRIM);
-  b.box(0.15, 0, -hd + 0.16, ROOM_W - 0.3, 0.14, 0.02, color);
-  b.box(-hw + 0.16, 0, 0.15, 0.02, 0.14, ROOM_D - 0.3, color);
-
   // Low partitions on the front (+z) and right (+x) sides, each with a doorway.
   const low = 1.0;
   const front = (x0: number, x1: number) => {
@@ -55,12 +47,6 @@ function buildRoom(color: string) {
   for (const [x, z] of [[hw, hd], [-hw, hd], [hw, -hd], [-4.4, hd], [-2.4, hd], [hw, -1], [hw, 1]]) {
     b.box(x, 0, z, 0.24, low + 0.08, 0.24, TRIM);
   }
-
-  // Whiteboard corner.
-  b.box(-5.4, 0.85, -hd + 0.2, 3.1, 1.5, 0.06, '#9aa0a8');
-  b.box(-5.4, 0.8, -hd + 0.28, 2.0, 0.05, 0.12, '#9aa0a8');
-  b.box(-5.9, 0.85, -hd + 0.3, 0.14, 0.04, 0.04, '#e5484d');
-  b.box(-5.6, 0.85, -hd + 0.3, 0.14, 0.04, 0.04, '#3e63dd');
 
   // Bookshelf on the left wall.
   const sx = -hw + 0.38;
@@ -116,6 +102,39 @@ function buildRoom(color: string) {
 
   return b.build();
 }
+
+/**
+ * The two tall walls (back = -z, left = -x). They are separate meshes so they can drop to
+ * knee height when the camera is rotated to look through them.
+ */
+function buildWalls(color: string) {
+  const hw = ROOM_HW;
+  const hd = ROOM_HD;
+  const back = new VoxelBuilder()
+    .box(0, 0, -hd, ROOM_W + 0.3, WALL_H, 0.3, WALL)
+    .box(0, WALL_H, -hd, ROOM_W + 0.34, 0.07, 0.34, TRIM)
+    .box(0.15, 0, -hd + 0.16, ROOM_W - 0.3, 0.14, 0.02, color)
+    .box(0.15, 0, -hd - 0.16, ROOM_W - 0.3, 0.14, 0.02, color)
+    .build();
+  const left = new VoxelBuilder()
+    .box(-hw, 0, 0, 0.3, WALL_H, ROOM_D + 0.3, WALL)
+    .box(-hw, WALL_H, 0, 0.34, 0.07, ROOM_D + 0.34, TRIM)
+    .box(-hw + 0.16, 0, 0.15, 0.02, 0.14, ROOM_D - 0.3, color)
+    .box(-hw - 0.16, 0, 0.15, 0.02, 0.14, ROOM_D - 0.3, color)
+    .build();
+  return { back, left };
+}
+
+const whiteboardFrame = new VoxelBuilder()
+  .box(-5.4, 0.85, -ROOM_HD + 0.2, 3.1, 1.5, 0.06, '#9aa0a8')
+  .box(-5.4, 0.8, -ROOM_HD + 0.28, 2.0, 0.05, 0.12, '#9aa0a8')
+  .box(-5.9, 0.85, -ROOM_HD + 0.3, 0.14, 0.04, 0.04, '#e5484d')
+  .box(-5.6, 0.85, -ROOM_HD + 0.3, 0.14, 0.04, 0.04, '#3e63dd')
+  .build();
+
+const viewDir = new Vector3();
+/** Wall height when cut away. */
+const CUT = 0.18;
 
 // Desk variants: props differ by seat so rooms don't look copy-pasted.
 const deskCache = new Map<number, ReturnType<VoxelBuilder['build']>>();
@@ -226,6 +245,10 @@ export function Room({ team }: { team: Team }) {
   const [fresh] = useState(() => useWorld.getState().fresh.has(team.id));
 
   const geometry = useMemo(() => buildRoom(team.color), [team.color]);
+  const walls = useMemo(() => buildWalls(team.color), [team.color]);
+  const backWall = useRef<Group>(null!);
+  const leftWall = useRef<Group>(null!);
+  const backDecor = useRef<Group>(null!);
   const floor = useMemo(() => {
     const tex = floorTexture().clone();
     tex.repeat.set(ROOM_W / 1.3, ROOM_D / 1.3);
@@ -243,7 +266,16 @@ export function Room({ team }: { team: Team }) {
 
   const shell = useRef<Group>(null!);
   const born = useRef<number | null>(fresh ? -1 : null);
-  useFrame((state) => {
+  useFrame((state, dt) => {
+    // Cut a tall wall down when the camera looks through it into the room.
+    state.camera.getWorldDirection(viewDir);
+    const k = 1 - Math.exp(-Math.min(dt, 0.1) * 8);
+    const back = backWall.current.scale;
+    back.y += ((viewDir.z > 0.15 ? CUT : 1) - back.y) * k;
+    backDecor.current.visible = back.y > 0.7;
+    const left = leftWall.current.scale;
+    left.y += ((viewDir.x > 0.15 ? CUT : 1) - left.y) * k;
+
     if (born.current === null) return;
     const t = state.clock.elapsedTime;
     if (born.current < 0) born.current = t;
@@ -266,12 +298,21 @@ export function Room({ team }: { team: Team }) {
           <planeGeometry args={[ROOM_W, ROOM_D]} />
         </mesh>
         <mesh geometry={geometry} material={voxelMaterial} castShadow receiveShadow />
-        <mesh position={[-5.4, 1.6, -ROOM_HD + 0.24]} material={board}>
-          <planeGeometry args={[2.95, 1.38]} />
-        </mesh>
-        <mesh position={[3.2, 1.95, -ROOM_HD + 0.17]} material={sign}>
-          <planeGeometry args={[4.4, 1.1]} />
-        </mesh>
+        <group ref={backWall}>
+          <mesh geometry={walls.back} material={voxelMaterial} castShadow receiveShadow />
+        </group>
+        <group ref={leftWall}>
+          <mesh geometry={walls.left} material={voxelMaterial} castShadow receiveShadow />
+        </group>
+        <group ref={backDecor}>
+          <mesh geometry={whiteboardFrame} material={voxelMaterial} castShadow />
+          <mesh position={[-5.4, 1.6, -ROOM_HD + 0.24]} material={board}>
+            <planeGeometry args={[2.95, 1.38]} />
+          </mesh>
+          <mesh position={[3.2, 1.95, -ROOM_HD + 0.17]} material={sign}>
+            <planeGeometry args={[4.4, 1.1]} />
+          </mesh>
+        </group>
         {agentIds.map((id, i) => (
           <Workstation key={id} agentId={id} seat={seats[i]} color={team.color} icon={team.icon} />
         ))}

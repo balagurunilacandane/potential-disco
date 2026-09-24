@@ -55,6 +55,8 @@ interface WorldStore {
   touring: boolean;
   /** What the tour is currently showing. */
   tourLabel: string | null;
+  /** The browser dropped the WebGL context (usually low graphics memory). */
+  graphicsLost: boolean;
   toasts: Toast[];
 }
 
@@ -74,6 +76,7 @@ export const useWorld = create<WorldStore>(() => ({
   viewAngle: 'classic',
   touring: false,
   tourLabel: null,
+  graphicsLost: false,
   toasts: [],
 }));
 

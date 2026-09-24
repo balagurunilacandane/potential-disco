@@ -56,10 +56,12 @@ export function TopBar({ onHelp }: { onHelp: () => void }) {
           ?
         </button>
         <button className="btn" onClick={() => openModal({ kind: 'team' })}>
-          + New team
+          + <span className="long">New team</span>
+          <span className="short">Team</span>
         </button>
         <button className="btn primary" onClick={() => openModal({ kind: 'agent' })} disabled={teamCount === 0}>
-          + Hire agent
+          + <span className="long">Hire agent</span>
+          <span className="short">Hire</span>
         </button>
       </div>
     </header>
@@ -79,14 +81,14 @@ export function TeamsPanel() {
   const teams = useWorld(useShallow((s) => Object.values(s.teams).sort((a, b) => a.slot - b.slot)));
   const agents = useWorld((s) => s.agents);
   const selection = useWorld((s) => s.selection);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(() => window.innerWidth > 760);
 
   return (
     <aside className={`teams panel${open ? '' : ' collapsed'}`}>
       <div className="panel-head">
-        <h2>Teams</h2>
-        <button className="icon-btn" onClick={() => setOpen(!open)} aria-label={open ? 'Collapse teams' : 'Expand teams'}>
-          {open ? '−' : '+'}
+        <h2>Teams · {teams.length}</h2>
+        <button className="icon-btn" onClick={() => setOpen(!open)} aria-label={open ? 'Hide teams' : 'Show teams'} aria-expanded={open}>
+          {open ? '▴' : '▾'}
         </button>
       </div>
       {open && (
@@ -169,8 +171,8 @@ export function ActivityFeed() {
         <h2>
           <span className="live-dot" /> Brain activity
         </h2>
-        <button className="icon-btn" onClick={() => setOpen(!open)} aria-label={open ? 'Collapse activity' : 'Expand activity'}>
-          {open ? '−' : '+'}
+        <button className="icon-btn" onClick={() => setOpen(!open)} aria-label={open ? 'Hide activity' : 'Show activity'} aria-expanded={open}>
+          {open ? '▴' : '▾'}
         </button>
       </div>
       {open && (
@@ -372,6 +374,27 @@ export function Welcome({ onClose }: { onClose: () => void }) {
             ▶ Show me around
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Shown if the browser drops the 3D view, usually when the device runs low on graphics memory. */
+export function GraphicsNotice() {
+  const lost = useWorld((s) => s.graphicsLost);
+  if (!lost) return null;
+  return <SceneMessage title="The 3D view stopped" text="Your device ran low on graphics memory. Reload to start it again; your teams and agents are kept." />;
+}
+
+export function SceneMessage({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="splash">
+      <div className="panel splash-card" role="alert">
+        <h2>{title}</h2>
+        <p className="muted">{text}</p>
+        <button className="btn primary" onClick={() => location.reload()}>
+          Reload
+        </button>
       </div>
     </div>
   );

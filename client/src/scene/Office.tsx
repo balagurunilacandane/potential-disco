@@ -4,8 +4,9 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Bloom, EffectComposer, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
-import { MOUSE, TOUCH, type DirectionalLight } from 'three';
+import { MOUSE, NeutralToneMapping, TOUCH, type DirectionalLight } from 'three';
 import { useShallow } from 'zustand/react/shallow';
+import { LOW_POWER } from '../lib/device.ts';
 import { VIEW_ANGLES, moveCamera, select, useWorld } from '../lib/store.ts';
 import { Brain } from './Brain.tsx';
 import { CameraRig, MAX_ZOOM, MIN_ZOOM, POLAR_LIMITS } from './CameraRig.tsx';
@@ -42,7 +43,7 @@ function Sun({ extent }: { extent: number }) {
     cam.near = 1;
     cam.far = 300;
     cam.updateProjectionMatrix();
-    const res = Math.min(4096, Math.max(2048, Math.round(e * 40)));
+    const res = LOW_POWER ? 2048 : Math.min(4096, Math.max(2048, Math.round(e * 40)));
     if (light.current.shadow.mapSize.x !== res) {
       light.current.shadow.mapSize.set(res, res);
       light.current.shadow.map?.dispose();
@@ -99,9 +100,20 @@ export function Office() {
     <Canvas
       shadows
       orthographic
-      dpr={[1, 2]}
+      dpr={LOW_POWER ? [1, 1.5] : [1, 2]}
       camera={{ position: [VIEW[0] * 90, VIEW[1] * 90, VIEW[2] * 90], zoom: 10, near: 0.1, far: 1000 }}
-      gl={{ antialias: false, powerPreference: 'high-performance' }}
+      // Without post-processing the canvas does its own anti-aliasing and tone mapping.
+      gl={{ antialias: LOW_POWER, powerPreference: 'high-performance' }}
+      onCreated={({ gl }) => {
+        // On the light path there is no post-processing, so the renderer tone maps directly.
+        if (LOW_POWER) gl.toneMapping = NeutralToneMapping;
+        const canvas = gl.domElement;
+        canvas.addEventListener('webglcontextlost', (e) => {
+          e.preventDefault();
+          useWorld.setState({ graphicsLost: true });
+        });
+        canvas.addEventListener('webglcontextrestored', () => useWorld.setState({ graphicsLost: false }));
+      }}
       onPointerMissed={(e) => e.type === 'click' && select(null)}
     >
       <World />
@@ -113,15 +125,17 @@ export function Office() {
         maxZoom={MAX_ZOOM}
         minPolarAngle={POLAR_LIMITS.min}
         maxPolarAngle={POLAR_LIMITS.max}
-        zoomToCursor
+        zoomToCursor={!LOW_POWER}
         screenSpacePanning={false}
         mouseButtons={{ LEFT: MOUSE.PAN, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.ROTATE }}
         touches={{ ONE: TOUCH.PAN, TWO: TOUCH.DOLLY_ROTATE }}
       />
-      <EffectComposer multisampling={4}>
-        <Bloom mipmapBlur luminanceThreshold={1.05} luminanceSmoothing={0.2} intensity={0.9} />
-        <ToneMapping mode={ToneMappingMode.NEUTRAL} />
-      </EffectComposer>
+      {!LOW_POWER && (
+        <EffectComposer multisampling={4}>
+          <Bloom mipmapBlur luminanceThreshold={1.05} luminanceSmoothing={0.2} intensity={0.9} />
+          <ToneMapping mode={ToneMappingMode.NEUTRAL} />
+        </EffectComposer>
+      )}
     </Canvas>
   );
 }
